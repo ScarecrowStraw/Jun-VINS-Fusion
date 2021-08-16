@@ -1,4 +1,4 @@
-# MYNT-EYE-VINS-FUSION
+# Jun-VINS-FUSION
 
 
 ## Prerequisites
