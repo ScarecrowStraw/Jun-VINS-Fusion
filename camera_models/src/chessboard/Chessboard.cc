@@ -17,13 +17,13 @@ Chessboard::Chessboard(cv::Size boardSize, cv::Mat& image)
 {
     if (image.channels() == 1)
     {
-        cv::cvtColor(image, mSketch, cv::COLOR_GRAY2BGR);
+        cv::cvtColor(image, mSketch, CV_GRAY2BGR);
         image.copyTo(mImage);
     }
     else
     {
         image.copyTo(mSketch);
-        cv::cvtColor(image, mImage, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(image, mImage, CV_BGR2GRAY);
     }
 }
 

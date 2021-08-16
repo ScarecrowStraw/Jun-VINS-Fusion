@@ -2,8 +2,8 @@
 ---
 model_type: MEI
 camera_name: camera
-image_width: 640
-image_height: 400
+image_width: 752
+image_height: 480
 mirror_parameters:
    xi: 1.4456544769803834e+00
 distortion_parameters:

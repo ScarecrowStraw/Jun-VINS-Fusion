@@ -82,13 +82,12 @@ void sync_process()
             {
                 double time0 = img0_buf.front()->header.stamp.toSec();
                 double time1 = img1_buf.front()->header.stamp.toSec();
-                // 0.003s sync tolerance
-                if(time0 < time1 - 0.003)
+                if(time0 < time1)
                 {
                     img0_buf.pop();
                     printf("throw img0\n");
                 }
-                else if(time0 > time1 + 0.003)
+                else if(time0 > time1)
                 {
                     img1_buf.pop();
                     printf("throw img1\n");
@@ -185,38 +184,14 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
     if (restart_msg->data == true)
     {
         ROS_WARN("restart the estimator!");
+        m_buf.lock();
+        while(!feature_buf.empty())
+            feature_buf.pop();
+        while(!imu_buf.empty())
+            imu_buf.pop();
+        m_buf.unlock();
         estimator.clearState();
         estimator.setParameter();
-    }
-    return;
-}
-
-void imu_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
-{
-    if (switch_msg->data == true)
-    {
-        //ROS_WARN("use IMU!");
-        estimator.changeSensorType(1, STEREO);
-    }
-    else
-    {
-        //ROS_WARN("disable IMU!");
-        estimator.changeSensorType(0, STEREO);
-    }
-    return;
-}
-
-void cam_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
-{
-    if (switch_msg->data == true)
-    {
-        //ROS_WARN("use stereo!");
-        estimator.changeSensorType(USE_IMU, 1);
-    }
-    else
-    {
-        //ROS_WARN("use mono camera (left)!");
-        estimator.changeSensorType(USE_IMU, 0);
     }
     return;
 }
@@ -227,6 +202,10 @@ int main(int argc, char **argv)
     ros::NodeHandle n("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
+   std::string config_file = "read_config_path_is_not_correct";   
+
+if (argc > 1)
+{
     if(argc != 2)
     {
         printf("please intput: rosrun vins vins_node [config file] \n"
@@ -235,9 +214,18 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    string config_file = argv[1];
-    printf("config_file: %s\n", argv[1]);
-
+    config_file = argv[1];
+}
+else
+{
+   // printf("config_file: %s\n", argv[1]);
+   if (!n.getParam("config_file", config_file))
+   {
+     ROS_INFO("Error: %s\n",config_file.c_str());
+     return 1;
+   }
+    ROS_INFO("load config_file: %s\n", config_file.c_str());
+}
     readParameters(config_file);
     estimator.setParameter();
 
@@ -249,21 +237,10 @@ int main(int argc, char **argv)
 
     registerPub(n);
 
-    ros::Subscriber sub_imu;
-    if(USE_IMU)
-    {
-        sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    }
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);
-    ros::Subscriber sub_img1;
-    if(STEREO)
-    {
-        sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
-    }
-    ros::Subscriber sub_restart = n.subscribe("/vins_restart", 100, restart_callback);
-    ros::Subscriber sub_imu_switch = n.subscribe("/vins_imu_switch", 100, imu_switch_callback);
-    ros::Subscriber sub_cam_switch = n.subscribe("/vins_cam_switch", 100, cam_switch_callback);
+    ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
 
     std::thread sync_thread{sync_process};
     ros::spin();

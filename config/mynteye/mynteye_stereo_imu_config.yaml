@@ -8,12 +8,12 @@ num_of_cam: 2
 imu_topic: "/mynteye/imu/data_raw"
 image0_topic: "/mynteye/left/image_raw"
 image1_topic: "/mynteye/right/image_raw"
-output_path: "/home/lacie/Github/vins_mynteye_output/"
+output_path: "/home/tong/output/"
 
 cam0_calib: "left_mei.yaml"
 cam1_calib: "right_mei.yaml"
-image_width: 640
-image_height: 400
+image_width: 752
+image_height: 480
    
 
 # Extrinsic parameter between IMU and Camera.

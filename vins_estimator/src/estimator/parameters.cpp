@@ -8,6 +8,7 @@
  *******************************************************/
 
 #include "parameters.h"
+#include "get_calib_info.h"
 
 double INIT_DEPTH;
 double MIN_PARALLAX;
@@ -46,36 +47,22 @@ double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
 
-
-template <typename T>
-T readParam(ros::NodeHandle &n, std::string name)
-{
-    T ans;
-    if (n.getParam(name, ans))
-    {
-        ROS_INFO_STREAM("Loaded " << name << ": " << ans);
-    }
-    else
-    {
-        ROS_ERROR_STREAM("Failed to load " << name);
-        n.shutdown();
-    }
-    return ans;
-}
-
 void readParameters(std::string config_file)
 {
-    FILE *fh = fopen(config_file.c_str(),"r");
-    if(fh == NULL){
+    if (readMYNTConfig(config_file)) {
+        return;
+    }
+
+    FILE *fh = fopen(config_file.c_str(), "r");
+    if (fh == NULL) {
         ROS_WARN("config_file dosen't exist; wrong config_file path");
         ROS_BREAK();
-        return;          
+        return;
     }
     fclose(fh);
 
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
-    if(!fsSettings.isOpened())
-    {
+    if (!fsSettings.isOpened()) {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
 
@@ -91,8 +78,7 @@ void readParameters(std::string config_file)
 
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
-    if(USE_IMU)
-    {
+    if (USE_IMU) {
         fsSettings["imu_topic"] >> IMU_TOPIC;
         printf("IMU_TOPIC: %s\n", IMU_TOPIC.c_str());
         ACC_N = fsSettings["acc_n"];
@@ -148,24 +134,23 @@ void readParameters(std::string config_file)
         assert(0);
     }
 
-
     int pn = config_file.find_last_of('/');
     std::string configPath = config_file.substr(0, pn);
     
     std::string cam0Calib;
     fsSettings["cam0_calib"] >> cam0Calib;
     std::string cam0Path = configPath + "/" + cam0Calib;
+    std::cout << cam0Path << std::endl;
     CAM_NAMES.push_back(cam0Path);
 
-    if(NUM_OF_CAM == 2)
-    {
+    if (NUM_OF_CAM == 2) {
         STEREO = 1;
         std::string cam1Calib;
         fsSettings["cam1_calib"] >> cam1Calib;
-        std::string cam1Path = configPath + "/" + cam1Calib; 
-        //printf("%s cam1 path\n", cam1Path.c_str() );
+        std::string cam1Path = configPath + "/" + cam1Calib;
+        // printf("%s cam1 path\n", cam1Path.c_str() );
         CAM_NAMES.push_back(cam1Path);
-        
+
         cv::Mat cv_T;
         fsSettings["body_T_cam1"] >> cv_T;
         Eigen::Matrix4d T;
