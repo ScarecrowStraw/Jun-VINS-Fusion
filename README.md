@@ -24,31 +24,18 @@ Skip this if already installed.
 [S-SDK Installation](https://mynt-eye-s-sdk.readthedocs.io/en/latest/src/sdk/source_install_ubuntu.html), [D-SDK Installation](https://mynt-eye-d-sdk.readthedocs.io/en/latest/installation/build_linux.html)
 
 ## Run vins-fusion with <span id = "avartasdkinstall">mynteye-s2100</span>
-### mono+imu fusion
-```
-cd path/to/MYNT-EYE-S-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynt_eye_ros_wrapper vins_fusion.launch
-```
-Open another terminal
-```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-s2100-mono-imu.launch
-```
 
 #### Stereo fusion
 ```
-cd path/to/MYNT-EYE-S-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynt_eye_ros_wrapper mynteye.launch
+source ~catkin_ws/devel/setup.bash
+(option when use real divice) oslaunch mynt_eye_ros_wrapper mynteye.launch
 roslaunch vins mynteye-s2100-stereo.launch
 ```
-Open another terminal
+#### Stereo imu fusion
 ```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-s2100-stereo.launch
+source ~catkin_ws/devel/setup.bash
+(option when use real divice) oslaunch mynt_eye_ros_wrapper mynteye.launch
+roslaunch vins mynteye-s2100-stereo-imu.aunch
 ```
 
 # VINS-Fusion
