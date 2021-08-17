@@ -28,13 +28,13 @@ Skip this if already installed.
 #### Stereo fusion
 ```
 source ~catkin_ws/devel/setup.bash
-(option when use real divice) oslaunch mynt_eye_ros_wrapper mynteye.launch
+(option when use real divice) roslaunch mynt_eye_ros_wrapper mynteye.launch
 roslaunch vins mynteye-s2100-stereo.launch
 ```
 #### Stereo imu fusion
 ```
 source ~catkin_ws/devel/setup.bash
-(option when use real divice) oslaunch mynt_eye_ros_wrapper mynteye.launch
+(option when use real divice) roslaunch mynt_eye_ros_wrapper mynteye.launch
 roslaunch vins mynteye-s2100-stereo-imu.aunch
 ```
 
