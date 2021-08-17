@@ -23,103 +23,6 @@ sudo make install
 Skip this if already installed.
 [S-SDK Installation](https://mynt-eye-s-sdk.readthedocs.io/en/latest/src/sdk/source_install_ubuntu.html), [D-SDK Installation](https://mynt-eye-d-sdk.readthedocs.io/en/latest/installation/build_linux.html)
 
-## Install MYNT-EYE--FUSION-Sample
-```
-mkdir -p ~/catkin_ws/src
-cd ~/catkin_ws/src
-git clone https://github.com/slightech/MYNT-EYE-VINS-FUSION-Samples.git
-cd ..
-catkin_make
-source devel/setup.bash
-echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
-source ~/.bashrc
-```
-
-Then ,judge if your device type is mynteye-d ,mynteye-s or mynteye-s2100,then follow the following installation process: [Run vins-fusion with mynteye-s](#ssdkinstall) / [Run vins-fusion with mynteye-d](#dsdkinstall) / [Run vins-fusion with mynteye-s2100](#avartasdkinstall).
-
-## Run vins-fusion with <span id = "ssdkinstall">mynteye-s</span>
-
-### 
-
-#### mono+imu fusion
-```
-cd path/to/MYNT-EYE-S-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynt_eye_ros_wrapper vins_fusion.launch
-
-```
-Open another terminal
-```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-s-mono-imu.launch
-```
-#### Stereo fusion
-```
-cd path/to/MYNT-EYE-S-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynt_eye_ros_wrapper vins_fusion.launch
-```
-Open another terminal
-```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-s-stereo.launch
-```
-
-#### Stereo+imu fusion
-```
-cd path/to/MYNT-EYE-S-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynt_eye_ros_wrapper vins_fusion.launch
-```
-Open another terminal
-```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-s-stereo.launch
-```
-
-## Run vins-fusion with <span id = "dsdkinstall">mynteye-d</span>
-#### mono+imu fusion
-```
-cd path/to/MYNT-EYE-D-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynteye_wrapper_d vins_fusion.launch  stream_mode:=1 # stereo camera with 640x480
-```
-Open another terminal
-```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-d-mono-imu.launch
-```
-#### Stereo fusion
-```
-cd path/to/MYNT-EYE-D-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynteye_wrapper_d vins_fusion.launch  stream_mode:=1 # stereo camera with 640x480
-
-```
-Open another terminal
-```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-d-stereo.launch
-```
-
-#### Stereo+imu fusion
-```
-cd path/to/MYNT-EYE-D-SDK
-source wrappers/ros/devel/setup.bash
-roslaunch mynteye_wrapper_d vins_fusion.launch  stream_mode:=1 # stereo camera with 640x480
-
-```
-Open another terminal
-```
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch vins mynteye-d-stereo.launch
-```
 ## Run vins-fusion with <span id = "avartasdkinstall">mynteye-s2100</span>
 ### mono+imu fusion
 ```
@@ -147,9 +50,6 @@ cd ~/catkin_ws
 source ./devel/setup.bash
 roslaunch vins mynteye-s2100-stereo.launch
 ```
-
-**dataset link[vins_fusion](http://gofile.me/3Xa46/FpzGao2JY), password: vins_fusion**
----
 
 # VINS-Fusion
 ## An optimization-based multi-sensor state estimator
