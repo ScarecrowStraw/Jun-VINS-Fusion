@@ -1,0 +1,14 @@
+Datasets:
+  city_night_high:
+    label: high
+  city_night_low:
+    label: low
+  city_night_mid:
+    label: mid
+  city_night_none:
+    label: none
+Algorithms:
+  vins_fusion:
+    fn: traj_est
+    label: vins-fusion
+RelDistances: []

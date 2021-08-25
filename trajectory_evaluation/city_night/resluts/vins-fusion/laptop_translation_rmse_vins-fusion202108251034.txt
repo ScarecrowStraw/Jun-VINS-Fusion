@@ -1,0 +1,2 @@
+      &      city_night_high & city_night_low & city_night_mid &  city_night_none
+vins_fusion &     0.764 & 0.513 & 0.389 &  0.290 
