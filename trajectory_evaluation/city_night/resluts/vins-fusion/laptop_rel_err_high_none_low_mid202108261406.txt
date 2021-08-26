@@ -1,0 +1,5 @@
+      &      Translation (\%) &  Rotation (deg/meter)
+high &     1.879 &  0.015 
+low &     1.324 &  0.017 
+mid &     1.064 &  0.013 
+none &     0.969 &  0.016 

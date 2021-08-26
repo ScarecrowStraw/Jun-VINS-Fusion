@@ -1,0 +1,17 @@
+Datasets:
+  parking_lot:
+    label: parking_lot
+Algorithms:
+  high:
+    fn: traj_est
+    label: high
+  mid:
+    fn: traj_est
+    label: mid
+  none:
+    fn: traj_est
+    label: none
+  low:
+    fn: traj_est
+    label: low
+RelDistances: []

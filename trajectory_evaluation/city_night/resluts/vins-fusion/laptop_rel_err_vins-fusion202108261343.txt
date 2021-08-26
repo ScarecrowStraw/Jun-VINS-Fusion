@@ -1,0 +1,2 @@
+      &      Translation (\%) &  Rotation (deg/meter)
+vins_fusion &     1.309 &  0.015 

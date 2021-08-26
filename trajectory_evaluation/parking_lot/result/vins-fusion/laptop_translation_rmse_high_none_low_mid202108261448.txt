@@ -1,0 +1,5 @@
+      &       parking_lot
+high &      0.143 
+low &      0.087 
+mid &      0.080 
+none &      0.105 
