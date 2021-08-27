@@ -12,8 +12,8 @@ output_path: "/home/hoangqc/output/"
 
 cam0_calib: "cam0_pinhole.yaml"
 cam1_calib: "cam1_pinhole.yaml"
-image_width: 640
-image_height: 400
+image_width: 512
+image_height: 512
    
 
 # Extrinsic parameter between IMU and Camera.
@@ -24,18 +24,18 @@ body_T_cam0: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [0.0, 0.0, 1.0, 0.0,
-          1.0, 0.0, 0.0, -0.15,
-          0.0, 1.0, 0.0, 0.0,
+   data: [1.0, 0.0, 0.0, 0.4,
+          0.0, 1.0, 0.0, -0.025,
+          0.0, 0.0, 1.0, 0.0,
           0.0, 0.0, 0.0, 1.0]
 
 body_T_cam1: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [0.0, 0.0, 1.0, 0.0,
-          1.0, 0.0, 0.0, 0.15,
-          0.0, 1.0, 0.0, 0.0,
+   data: [1.0, 0.0, 0.0, 0.4,
+          0.0, 1.0, 0.0, 0.025,
+          0.0, 0.0, 1.0, 0.0,
           0.0, 0.0, 0.0, 1.0]
 
 #Multiple thread support
