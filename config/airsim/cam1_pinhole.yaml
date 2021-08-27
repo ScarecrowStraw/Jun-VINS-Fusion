@@ -8,7 +8,7 @@ distortion_parameters:
    k1: 0.0
    k2: 0.0
    p1: 0.0
-   p2: 0.0
+   p2: 0.0 
 projection_parameters:
    fx: 217.03269213
    fy: 217.03269213
