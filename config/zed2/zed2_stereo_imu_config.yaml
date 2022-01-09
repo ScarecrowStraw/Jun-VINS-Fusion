@@ -5,15 +5,15 @@
 imu: 1         
 num_of_cam: 2  
 
-imu_topic: "/imu0"
-image0_topic: "/cam0/image_raw"
-image1_topic: "/cam1/image_raw"
-output_path: "/home/lacie/output/"
+imu_topic: "/zed2/zed_node/imu/data"
+image0_topic: "/zed2/zed_node/left_raw/image_raw_color"
+image1_topic: "/zed2/zed_node/right_raw/image_raw_color"
+output_path: "/home/jun/output/"
 
 cam0_calib: "cam0_pinhole.yaml"
 cam1_calib: "cam1_pinhole.yaml"
-image_width: 672
-image_height: 376
+image_width: 1280
+image_height: 720
    
 
 # Extrinsic parameter between IMU and Camera.

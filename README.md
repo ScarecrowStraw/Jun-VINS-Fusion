@@ -1,5 +1,16 @@
 # Jun-VINS-FUSION
 
+# get ZED camera Calib information : 
+
+https://www.stereolabs.com/developers/calib/?SN=NNNN (NNNN is Serial Number)
+
+# Calib
+
+https://blog.csdn.net/weixin_44401286/article/details/109641268
+
+https://www.cxymm.net/article/slender_1031/115030053
+
+https://cxybb.com/article/xiaojinger_123/121611118
 
 ## Prerequisites
 ### 1. **Ubuntu** and **ROS**
