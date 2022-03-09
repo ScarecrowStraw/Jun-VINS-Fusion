@@ -39,6 +39,7 @@ int MULTIPLE_THREAD;
 int USE_GPU;
 int USE_GPU_ACC_FLOW;
 int USE_VPI;
+int VPI_BACKEND;
 int PUB_RECTIFY;
 Eigen::Matrix3d rectify_R_left;
 Eigen::Matrix3d rectify_R_right;

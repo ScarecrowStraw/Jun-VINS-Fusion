@@ -350,8 +350,6 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             VPIStream stream      = NULL;
             VPIPayload harris     = NULL;
 
-            int retval = 0;
-
             VPIBackend backend;
 
             if (VPI_BACKEND == 0)
@@ -373,11 +371,60 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
                     cout << "mask is empty " << endl;
                 if (mask.type() != CV_8UC1)
                     cout << "mask type wrong " << endl;
+
                 TicToc t_g;
-                
+
+                vpiStreamCreate(0, &stream);
+                vpiImageCreateOpenCVMatWrapper(cur_img, 0, &imgInput);
+                vpiImageCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_S16, 0, &imgGrayscale);
+                vpiArrayCreate(8192, VPI_ARRAY_TYPE_KEYPOINT, 0, &keypoints);
+                vpiArrayCreate(8192, VPI_ARRAY_TYPE_U32, 0, &scores);
+                vpiCreateHarrisCornerDetector(backend, cur_img.cols, cur_img.rows, &harris);
+
+                VPIHarrisCornerDetectorParams harrisParams;
+                vpiInitHarrisCornerDetectorParams(&harrisParams);
+                harrisParams.sensitivity = 0.01;
+
+                vpiSubmitConvertImageFormat(stream, VPI_BACKEND_CUDA, imgInput, imgGrayscale, NULL);
+                vpiSubmitHarrisCornerDetector(stream, backend, harris, imgGrayscale, keypoints, scores, &harrisParams);
+
+                vpiStreamSync(stream);
+
+                VPIArrayData outKeypointsData;
+                VPIArrayData outScoresData;
+                VPIImageData imgData;
+                vpiArrayLock(keypoints, VPI_LOCK_READ, &outKeypointsData);
+                vpiArrayLock(scores, VPI_LOCK_READ, &outScoresData);
+                vpiImageLock(imgGrayscale, VPI_LOCK_READ, &imgData);
+
+                VPIKeypoint *outKeypoints = (VPIKeypoint *)outKeypointsData.data;
+                uint32_t *outScores       = (uint32_t *)outScoresData.data;
+
+                //TODO: Convert VPIKeypoint to n_pts
+                for (int i = 0; i < *outKeypointsData.sizePointer; i++)
+                {
+                    n_pts.push_back(cv::Point2f(outKeypoints[i].x, outKeypoints[i].y));
+                }
+
+                vpiImageUnlock(imgGrayscale);
+                vpiArrayUnlock(scores);
+                vpiArrayUnlock(keypoints);
+
             }
             else 
                 n_pts.clear();
+
+            if (stream != NULL)
+            {
+                vpiStreamSync(stream);
+            }
+  
+            vpiImageDestroy(imgInput);
+            vpiImageDestroy(imgGrayscale);
+            vpiArrayDestroy(keypoints);
+            vpiArrayDestroy(scores);
+            vpiPayloadDestroy(harris);
+            vpiStreamDestroy(stream);
         }
 
         ROS_DEBUG("add feature begins");
