@@ -22,6 +22,18 @@
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudaarithm.hpp>
 
+#include <vpi/OpenCVInterop.hpp>
+  
+#include <vpi/Array.h>
+#include <vpi/Image.h>
+#include <vpi/Pyramid.h>
+#include <vpi/Status.h>
+#include <vpi/Stream.h>
+#include <vpi/algo/ConvertImageFormat.h>
+#include <vpi/algo/GaussianPyramid.h>
+#include <vpi/algo/HarrisCorners.h>
+#include <vpi/algo/OpticalFlowPyrLK.h>
+
 #include "camodocal/camera_models/CameraFactory.h"
 #include "camodocal/camera_models/CataCamera.h"
 #include "camodocal/camera_models/PinholeCamera.h"
@@ -35,6 +47,12 @@ using namespace Eigen;
 bool inBorder(const cv::Point2f &pt);
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status);
 void reduceVector(vector<int> &v, vector<uchar> status);
+
+// Sort keypoints by decreasing score, and retain only the first 'max'
+void SortKeypoints(VPIArray keypoints, VPIArray scores, int max);
+
+int UpdateMask(cv::Mat &cvMask, const std::vector<cv::Scalar> &trackColors, VPIArray prevFeatures,
+                       VPIArray curFeatures, VPIArray status);
 
 class FeatureTracker
 {

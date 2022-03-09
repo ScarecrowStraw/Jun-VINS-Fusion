@@ -60,6 +60,101 @@ void reduceVector(vector<int> &v, vector<uchar> status)
     v.resize(j);
 }
 
+void SortKeypoints(VPIArray keypoints, VPIArray scores, int max)
+{
+    VPIArrayData ptsData, scoresData;
+    vpiArrayLock(keypoints, VPI_LOCK_READ_WRITE, &ptsData);
+    vpiArrayLock(scores, VPI_LOCK_READ_WRITE, &scoresData);
+  
+    std::vector<int> indices(*ptsData.sizePointer);
+    std::iota(indices.begin(), indices.end(), 0);
+  
+    stable_sort(indices.begin(), indices.end(), [&scoresData](int a, int b) {
+        uint32_t *score = reinterpret_cast<uint32_t *>(scoresData.data);
+        return score[a] >= score[b]; // decreasing score order
+    });
+  
+    // keep the only 'max' indexes.
+    indices.resize(std::min<size_t>(indices.size(), max));
+  
+    VPIKeypoint *kptData = reinterpret_cast<VPIKeypoint *>(ptsData.data);
+  
+    // reorder the keypoints to keep the first 'max' with highest scores.
+    std::vector<VPIKeypoint> kpt;
+    std::transform(indices.begin(), indices.end(), std::back_inserter(kpt),
+                    [kptData](int idx) { return kptData[idx]; });
+    std::copy(kpt.begin(), kpt.end(), kptData);
+  
+    // update keypoint array size.
+    *ptsData.sizePointer = kpt.size();
+  
+    vpiArrayUnlock(scores);
+    vpiArrayUnlock(keypoints);
+}
+
+int UpdateMask(cv::Mat &cvMask, const std::vector<cv::Scalar> &trackColors, VPIArray prevFeatures,
+                       VPIArray curFeatures, VPIArray status)
+{
+    // Now that optical flow is completed, there are usually two approaches to take:
+    // 1. Add new feature points from current frame using a feature detector such as
+    //    \ref algo_harris_corners "Harris Corner Detector"
+    // 2. Keep using the points that are being tracked.
+    //
+    // The sample app uses the valid feature point and continue to do the tracking.
+  
+    // Lock the input and output arrays to draw the tracks to the output mask.
+    VPIArrayData curFeaturesData, statusData;
+    vpiArrayLock(curFeatures, VPI_LOCK_READ_WRITE, &curFeaturesData);
+    vpiArrayLock(status, VPI_LOCK_READ, &statusData);
+  
+    const VPIKeypoint *pCurFeatures = (VPIKeypoint *)curFeaturesData.data;
+    const uint8_t *pStatus          = (uint8_t *)statusData.data;
+  
+    const VPIKeypoint *pPrevFeatures;
+    if (prevFeatures)
+    {
+        VPIArrayData prevFeaturesData;
+        vpiArrayLock(prevFeatures, VPI_LOCK_READ, &prevFeaturesData);
+        pPrevFeatures = (VPIKeypoint *)prevFeaturesData.data;
+    }
+    else
+    {
+        pPrevFeatures = NULL;
+    }
+  
+    int numTrackedKeypoints = 0;
+    int totKeypoints        = *curFeaturesData.sizePointer;
+  
+    for (int i = 0; i < totKeypoints; i++)
+    {
+        // keypoint is being tracked?
+        if (pStatus[i] == 0)
+        {
+            // draw the tracks
+            cv::Point curPoint{(int)round(pCurFeatures[i].x), (int)round(pCurFeatures[i].y)};
+            if (pPrevFeatures != NULL)
+            {
+                cv::Point2f prevPoint{pPrevFeatures[i].x, pPrevFeatures[i].y};
+                line(cvMask, prevPoint, curPoint, trackColors[i], 2);
+            }
+  
+            circle(cvMask, curPoint, 5, trackColors[i], -1);
+  
+            numTrackedKeypoints++;
+        }
+    }
+  
+    // We're finished working with the arrays.
+    if (prevFeatures)
+    {
+        vpiArrayUnlock(prevFeatures);
+    }
+    vpiArrayUnlock(curFeatures);
+    vpiArrayUnlock(status);
+  
+    return numTrackedKeypoints;
+}
+
 FeatureTracker::FeatureTracker()
 {
     stereo_cam = 0;
@@ -180,7 +275,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             }
             // printf("temporal optical flow costs: %fms\n", t_o.toc());
         }
-        else
+        else if (USE_GPU_ACC_FLOW)
         {
             TicToc t_og;
             cv::cuda::GpuMat prev_gpu_img(prev_img);
@@ -263,6 +358,63 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
                 }
             }
             // printf("gpu temporal optical flow costs: %f ms\n",t_og.toc());
+        }
+        else if (USE_VPI)
+        {
+            TicToc t_og;
+
+            // VPI objects that will be used
+            VPIStream stream        = NULL;
+            VPIImage imgTempFrame   = NULL;
+            VPIImage imgFrame       = NULL;
+            VPIPyramid pyrPrevFrame = NULL, pyrCurFrame = NULL;
+            VPIArray prevFeatures = NULL, curFeatures = NULL, status = NULL;
+            VPIPayload optflow = NULL;
+            VPIArray scores    = NULL;
+            VPIPayload harris  = NULL;
+            
+            // Now parse the backend
+            VPIBackend backend;
+        
+            if (VPI_BACKEND == 0)
+            {
+                backend = VPI_BACKEND_CPU;
+            }
+            else if (VPI_BACKEND == 1)
+            {
+                backend = VPI_BACKEND_CUDA;
+            }
+
+            vpiStreamCreate(0, &stream);
+            vpiImageCreateOpenCVMatWrapper(cur_img, 0, &imgTempFrame);
+            vpiImageCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, 0, &imgFrame);
+
+            vpiPyramidCreate(cvFrame.cols, cvFrame.rows, VPI_IMAGE_FORMAT_U8, pyrLevel, 0.5, 0, &pyrPrevFrame);
+            vpiPyramidCreate(cvFrame.cols, cvFrame.rows, VPI_IMAGE_FORMAT_U8, pyrLevel, 0.5, 0, &pyrCurFrame);
+
+            vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures);
+            vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures);
+            vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &status);
+
+            vpiCreateOpticalFlowPyrLK(backend, cvFrame.cols, cvFrame.rows, VPI_IMAGE_FORMAT_U8, pyrLevel, 0.5,
+                                                &optflow);
+
+            VPIOpticalFlowPyrLKParams lkParams;
+            vpiInitOpticalFlowPyrLKParams(&lkParams);
+
+            if(hasPrediction)
+            {
+
+            }
+            else
+            {
+
+            }
+            if(FLOW_BACK)
+            {
+
+            }
+
         }
     
         for (int i = 0; i < int(cur_pts.size()); i++)

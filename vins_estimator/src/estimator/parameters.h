@@ -56,6 +56,7 @@ extern int USE_GPU;
 extern int USE_GPU_ACC_FLOW;
 extern int USE_VPI;
 extern int VPI_BACKEND;
+extern int PYRAMID_LEVEL;
 extern int PUB_RECTIFY;
 extern Eigen::Matrix3d rectify_R_left;
 extern Eigen::Matrix3d rectify_R_right;

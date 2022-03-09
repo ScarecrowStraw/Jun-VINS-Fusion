@@ -40,6 +40,7 @@ int USE_GPU;
 int USE_GPU_ACC_FLOW;
 int USE_VPI;
 int VPI_BACKEND;
+int PYRAMID_LEVEL;
 int PUB_RECTIFY;
 Eigen::Matrix3d rectify_R_left;
 Eigen::Matrix3d rectify_R_right;
@@ -101,6 +102,7 @@ void readParameters(std::string config_file)
 
     USE_VPI = fsSettings["use_vpi"];
     VPI_BACKEND = fsSettings["vpi_backend"];
+    PYRAMID_LEVEL = fsSettings["pyramid_level"];
 
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);

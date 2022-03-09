@@ -8,7 +8,7 @@ num_of_cam: 2
 imu_topic: "/imu0"
 image0_topic: "/cam0/image_raw"
 image1_topic: "/cam1/image_raw"
-output_path: "/home/dji/output/"
+output_path: "/home/jun/vins-output/output/"
 
 cam0_calib: "cam0_mei.yaml"
 cam1_calib: "cam1_mei.yaml"
@@ -45,6 +45,7 @@ use_gpu_acc_flow: 1
 
 use_vpi: 0
 vpi_backend: 2 # 0 => CPU;  1 => CUDA; 2 => PVA 
+pyramid_level: 5
 
 #feature traker paprameters
 max_cnt: 350            # max feature number in feature tracking
