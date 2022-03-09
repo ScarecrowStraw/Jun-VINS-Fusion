@@ -20,6 +20,8 @@ Estimator::Estimator(): f_manager{Rs}
     initP = Eigen::Vector3d(0, 0, 0);
     initR = Eigen::Matrix3d::Identity();
     inputImageCnt = 0;
+    // sum_t_feature = 0.0;
+    // begin_time_count = 10;
     initFirstPoseFlag = false;
 }
 
@@ -49,14 +51,19 @@ void Estimator::setParameter()
 
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
+//     if(begin_time_count<=0)
     inputImageCnt++;
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
-    TicToc featureTrackerTime;
+    // TicToc featureTrackerTime;
     if(_img1.empty())
         featureFrame = featureTracker.trackImage(t, _img);
     else
         featureFrame = featureTracker.trackImage(t, _img, _img1);
-    //printf("featureTracker time: %f\n", featureTrackerTime.toc());
+    // if(begin_time_count--<=0)
+    // {
+    //     sum_t_feature += featureTrackerTime.toc();
+    //     printf("featureTracker time: %f\n", sum_t_feature/(float)inputImageCnt);
+    // }
     
     if(MULTIPLE_THREAD)  
     {     
@@ -151,6 +158,7 @@ void Estimator::processMeasurements()
     while (1)
     {
         //printf("process measurments\n");
+        TicToc t_process;
         pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > feature;
         vector<pair<double, Eigen::Vector3d>> accVector, gyrVector;
         if(!featureBuf.empty())
@@ -209,6 +217,7 @@ void Estimator::processMeasurements()
             pubPointCloud(*this, header);
             pubKeyframe(*this);
             pubTF(*this, header);
+            printf("process measurement time: %f\n", t_process.toc());
         }
 
         if (! MULTIPLE_THREAD)
@@ -860,7 +869,7 @@ void Estimator::double2vector()
             ric[i] = Quaterniond(para_Ex_Pose[i][6],
                                  para_Ex_Pose[i][3],
                                  para_Ex_Pose[i][4],
-                                 para_Ex_Pose[i][5]).toRotationMatrix();
+                                 para_Ex_Pose[i][5]).normalized().toRotationMatrix();
         }
     }
 

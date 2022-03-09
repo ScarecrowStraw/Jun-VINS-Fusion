@@ -8,7 +8,6 @@
  *******************************************************/
 
 #include "parameters.h"
-#include "get_calib_info.h"
 
 double INIT_DEPTH;
 double MIN_PARALLAX;
@@ -37,6 +36,12 @@ int NUM_OF_CAM;
 int STEREO;
 int USE_IMU;
 int MULTIPLE_THREAD;
+int USE_GPU;
+int USE_GPU_ACC_FLOW;
+int USE_VPI;
+int PUB_RECTIFY;
+Eigen::Matrix3d rectify_R_left;
+Eigen::Matrix3d rectify_R_right;
 map<int, Eigen::Vector3d> pts_gt;
 std::string IMAGE0_TOPIC, IMAGE1_TOPIC;
 std::string FISHEYE_MASK;
@@ -47,22 +52,36 @@ double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
 
+
+template <typename T>
+T readParam(ros::NodeHandle &n, std::string name)
+{
+    T ans;
+    if (n.getParam(name, ans))
+    {
+        ROS_INFO_STREAM("Loaded " << name << ": " << ans);
+    }
+    else
+    {
+        ROS_ERROR_STREAM("Failed to load " << name);
+        n.shutdown();
+    }
+    return ans;
+}
+
 void readParameters(std::string config_file)
 {
-    if (readMYNTConfig(config_file)) {
-        return;
-    }
-
-    FILE *fh = fopen(config_file.c_str(), "r");
-    if (fh == NULL) {
+    FILE *fh = fopen(config_file.c_str(),"r");
+    if(fh == NULL){
         ROS_WARN("config_file dosen't exist; wrong config_file path");
         ROS_BREAK();
-        return;
+        return;          
     }
     fclose(fh);
 
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
-    if (!fsSettings.isOpened()) {
+    if(!fsSettings.isOpened())
+    {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
 
@@ -76,9 +95,16 @@ void readParameters(std::string config_file)
 
     MULTIPLE_THREAD = fsSettings["multiple_thread"];
 
+    USE_GPU = fsSettings["use_gpu"];
+    USE_GPU_ACC_FLOW = fsSettings["use_gpu_acc_flow"];
+
+    USE_VPI = fsSettings["use_vpi"];
+    VPI_BACKEND = fsSettings["vpi_backend"];
+
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
-    if (USE_IMU) {
+    if(USE_IMU)
+    {
         fsSettings["imu_topic"] >> IMU_TOPIC;
         printf("IMU_TOPIC: %s\n", IMU_TOPIC.c_str());
         ACC_N = fsSettings["acc_n"];
@@ -134,29 +160,31 @@ void readParameters(std::string config_file)
         assert(0);
     }
 
+
     int pn = config_file.find_last_of('/');
     std::string configPath = config_file.substr(0, pn);
     
     std::string cam0Calib;
     fsSettings["cam0_calib"] >> cam0Calib;
     std::string cam0Path = configPath + "/" + cam0Calib;
-    std::cout << cam0Path << std::endl;
     CAM_NAMES.push_back(cam0Path);
 
-    if (NUM_OF_CAM == 2) {
+    if(NUM_OF_CAM == 2)
+    {
         STEREO = 1;
         std::string cam1Calib;
         fsSettings["cam1_calib"] >> cam1Calib;
-        std::string cam1Path = configPath + "/" + cam1Calib;
-        // printf("%s cam1 path\n", cam1Path.c_str() );
+        std::string cam1Path = configPath + "/" + cam1Calib; 
+        //printf("%s cam1 path\n", cam1Path.c_str() );
         CAM_NAMES.push_back(cam1Path);
-
+        
         cv::Mat cv_T;
         fsSettings["body_T_cam1"] >> cv_T;
         Eigen::Matrix4d T;
         cv::cv2eigen(cv_T, T);
         RIC.push_back(T.block<3, 3>(0, 0));
         TIC.push_back(T.block<3, 1>(0, 3));
+        fsSettings["publish_rectify"] >> PUB_RECTIFY;
     }
 
     INIT_DEPTH = 5.0;
@@ -179,6 +207,16 @@ void readParameters(std::string config_file)
         ESTIMATE_EXTRINSIC = 0;
         ESTIMATE_TD = 0;
         printf("no imu, fix extrinsic param; no time offset calibration\n");
+    }
+    if(PUB_RECTIFY)
+    {
+        cv::Mat rectify_left;
+        cv::Mat rectify_right;
+        fsSettings["cam0_rectify"] >> rectify_left;
+        fsSettings["cam1_rectify"] >> rectify_right;
+        cv::cv2eigen(rectify_left, rectify_R_left);
+        cv::cv2eigen(rectify_right, rectify_R_right);
+
     }
 
     fsSettings.release();
