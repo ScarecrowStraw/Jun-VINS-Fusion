@@ -365,16 +365,26 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
 
             // VPI objects that will be used
             VPIStream stream        = NULL;
-            VPIImage imgTempFrame   = NULL;
-            VPIImage imgFrame       = NULL;
-            VPIPyramid pyrPrevFrame = NULL, pyrCurFrame = NULL;
-            VPIArray prevFeatures = NULL, curFeatures = NULL, status = NULL;
+
+            VPIImage prevFrame   = NULL;
+            VPIImage curFrame       = NULL;
+
+            VPIImage tempPrev = NULL;
+            VPIImage tempCur = NULL;
+
+            VPIPyramid pyrPrevFrame = NULL;
+            VPIPyramid pyrCurFrame = NULL;
+
+            VPIArray prevFeatures = NULL;
+            VPIArray curFeatures = NULL;
+            VPIArray status = NULL;
+
             VPIPayload optflow = NULL;
-            VPIArray scores    = NULL;
-            VPIPayload harris  = NULL;
             
             // Now parse the backend
             VPIBackend backend;
+
+            int numTrackedKeypoints;
         
             if (VPI_BACKEND == 0)
             {
@@ -386,29 +396,57 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             }
 
             vpiStreamCreate(0, &stream);
-            vpiImageCreateOpenCVMatWrapper(cur_img, 0, &imgTempFrame);
-            vpiImageCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, 0, &imgFrame);
 
-            vpiPyramidCreate(cvFrame.cols, cvFrame.rows, VPI_IMAGE_FORMAT_U8, pyrLevel, 0.5, 0, &pyrPrevFrame);
-            vpiPyramidCreate(cvFrame.cols, cvFrame.rows, VPI_IMAGE_FORMAT_U8, pyrLevel, 0.5, 0, &pyrCurFrame);
+            vpiImageCreateOpenCVMatWrapper(prev_img, 0, &tempPrev);
+            vpiImageCreateOpenCVMatWrapper(cur_img, 0, &tempCur);
+            
+            vpiImageCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, 0, &curFrame);
+            vpiImageCreate(prev_img.cols, prev_img.rows, VPI_IMAGE_FORMAT_U8, 0, &prevFrame);
+
+            vpiPyramidCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, PYRAMID_LEVEL, 0.5, 0, &pyrPrevFrame);
+            vpiPyramidCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, PYRAMID_LEVEL, 0.5, 0, &pyrCurFrame);
 
             vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures);
             vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures);
+
             vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &status);
 
-            vpiCreateOpticalFlowPyrLK(backend, cvFrame.cols, cvFrame.rows, VPI_IMAGE_FORMAT_U8, pyrLevel, 0.5,
+            vpiCreateOpticalFlowPyrLK(backend, cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, PYRAMID_LEVEL, 0.5,
                                                 &optflow);
 
             VPIOpticalFlowPyrLKParams lkParams;
             vpiInitOpticalFlowPyrLKParams(&lkParams);
 
+            // current keypoint and prev keypoint => vpiArrayCreate [https://docs.nvidia.com/vpi/sample_klt_tracker.html]
+
             if(hasPrediction)
             {
+                vpiImageSetWrappedOpenCVMat(cur_img, &curFrame);
+                vpiImageSetWrappedOpenCVMat(prev_img, &prevFrame);
+
+                // vpiArrayLock()
+
+                vpiSubmitConvertImageFormat(stream, backend, imgTempFrame, curFrame, NULL);
+                vpiSubmitConvertImageFormat(stream, backend, imgTempFrame, prevFrame, NULL);
+                
+                vpiSubmitGaussianPyramidGenerator(stream, backend, imgFrame, pyrCurFrame);
+                vpiSubmitOpticalFlowPyrLK(stream, 0, optflow, pyrPrevFrame, pyrCurFrame, prevFeatures,
+                                                    curFeatures, status, &lkParams);
+                vpiStreamSync(stream);
+
+                numTrackedKeypoints = UpdateMask(cvMask, trackColors, prevFeatures, curFeatures, status);
 
             }
             else
             {
+                vpiImageCreateOpenCVMatWrapper(cur_img, 0, &imgTempFrame);
+                vpiSubmitConvertImageFormat(stream, backend, imgTempFrame, imgFrame, NULL);
+                vpiSubmitGaussianPyramidGenerator(stream, backend, imgFrame, pyrCurFrame);
+                vpiSubmitOpticalFlowPyrLK(stream, 0, optflow, pyrPrevFrame, pyrCurFrame, prevFeatures,
+                                                    curFeatures, status, &lkParams);
+                vpiStreamSync(stream);
 
+                numTrackedKeypoints = UpdateMask(cvMask, trackColors, prevFeatures, curFeatures, status);
             }
             if(FLOW_BACK)
             {
