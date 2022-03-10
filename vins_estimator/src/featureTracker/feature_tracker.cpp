@@ -417,8 +417,8 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             vpiPyramidCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, PYRAMID_LEVEL, 0.5, 0, &pyrPrevFrame);
             vpiPyramidCreate(cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, PYRAMID_LEVEL, 0.5, 0, &pyrCurFrame);
 
-            vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures);
-            vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures);
+            vpiArrayCreate(prev_pts.size(), VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures);
+            vpiArrayCreate(cur_pts.size(), VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures);
 
             vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &vpi_status);
 
@@ -434,6 +434,9 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             vpiArrayLock(prev_pts, VPI_LOCK_READ, &prevFeatures);
             vpiArrayLock(cur_pts, VPI_LOCK_READ, &curFeatures);
 
+            // current keypoint and prev keypoint => vpiArrayCreate [https://docs.nvidia.com/vpi/sample_klt_tracker.html]
+
+
             vpiArrayUnlock(prev_pts);
             vpiArrayUnlock(cur_pts);
 
@@ -442,8 +445,6 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
                 
             vpiSubmitGaussianPyramidGenerator(stream, backend, tempCur, pyrCurFrame);
             vpiSubmitGaussianPyramidGenerator(stream, backend, tempPrev, pyrPrevFrame);
-
-            // current keypoint and prev keypoint => vpiArrayCreate [https://docs.nvidia.com/vpi/sample_klt_tracker.html]
 
             if(hasPrediction)
             {
@@ -462,6 +463,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
 
                 // numTrackedKeypoints = UpdateMask(cvMask, trackColors, prevFeatures, curFeatures, status);
             }
+
             if(FLOW_BACK)
             {
                 cv::cuda::GpuMat prev_gpu_img(prev_img);
