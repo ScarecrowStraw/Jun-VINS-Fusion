@@ -20,11 +20,22 @@
 #include <vpi/algo/ConvertImageFormat.h>
 #include <vpi/algo/HarrisCorners.h>
 
-#include <iostream>
 #include <cstdio>
-#include <cstring>
-#include <sstream>
 #include <time.h>
+#include <algorithm>
+#include <cstring> // for memset
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <numeric>
+#include <sstream>
+#include <vector>
+
+// Max number of corners detected by harris corner algo
+constexpr int MAX_HARRIS_CORNERS = 8192;
+  
+// Max number of keypoints to be tracked
+constexpr int MAX_KEYPOINTS = 100;
 
 bool FeatureTracker::inBorder(const cv::Point2f &pt)
 {
@@ -377,7 +388,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
 
             VPIArray prevFeatures = NULL;
             VPIArray curFeatures = NULL;
-            VPIArray status = NULL;
+            VPIArray vpi_status = NULL;
 
             VPIPayload optflow = NULL;
             
@@ -409,7 +420,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures);
             vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures);
 
-            vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &status);
+            vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &vpi_status);
 
             vpiCreateOpticalFlowPyrLK(backend, cur_img.cols, cur_img.rows, VPI_IMAGE_FORMAT_U8, PYRAMID_LEVEL, 0.5,
                                                 &optflow);
@@ -417,40 +428,69 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             VPIOpticalFlowPyrLKParams lkParams;
             vpiInitOpticalFlowPyrLKParams(&lkParams);
 
+            vpiImageSetWrappedOpenCVMat(curFrame, cur_img);
+            vpiImageSetWrappedOpenCVMat(prevFrame, prev_img);
+
+            vpiArrayLock(prev_pts, VPI_LOCK_READ, &prevFeatures);
+            vpiArrayLock(cur_pts, VPI_LOCK_READ, &curFeatures);
+
+            vpiArrayUnlock(prev_pts);
+            vpiArrayUnlock(cur_pts);
+
+            vpiSubmitConvertImageFormat(stream, backend, curFrame, tempCur, NULL);
+            vpiSubmitConvertImageFormat(stream, backend, prevFrame, tempPrev, NULL);
+                
+            vpiSubmitGaussianPyramidGenerator(stream, backend, tempCur, pyrCurFrame);
+            vpiSubmitGaussianPyramidGenerator(stream, backend, tempPrev, pyrPrevFrame);
+
             // current keypoint and prev keypoint => vpiArrayCreate [https://docs.nvidia.com/vpi/sample_klt_tracker.html]
 
             if(hasPrediction)
             {
-                vpiImageSetWrappedOpenCVMat(cur_img, &curFrame);
-                vpiImageSetWrappedOpenCVMat(prev_img, &prevFrame);
-
-                // vpiArrayLock()
-
-                vpiSubmitConvertImageFormat(stream, backend, imgTempFrame, curFrame, NULL);
-                vpiSubmitConvertImageFormat(stream, backend, imgTempFrame, prevFrame, NULL);
-                
-                vpiSubmitGaussianPyramidGenerator(stream, backend, imgFrame, pyrCurFrame);
                 vpiSubmitOpticalFlowPyrLK(stream, 0, optflow, pyrPrevFrame, pyrCurFrame, prevFeatures,
-                                                    curFeatures, status, &lkParams);
+                                                    curFeatures, vpi_status, &lkParams);
                 vpiStreamSync(stream);
 
-                numTrackedKeypoints = UpdateMask(cvMask, trackColors, prevFeatures, curFeatures, status);
+                // numTrackedKeypoints = UpdateMask(cvMask, trackColors, prevFeatures, curFeatures, status);
 
             }
             else
             {
-                vpiImageCreateOpenCVMatWrapper(cur_img, 0, &imgTempFrame);
-                vpiSubmitConvertImageFormat(stream, backend, imgTempFrame, imgFrame, NULL);
-                vpiSubmitGaussianPyramidGenerator(stream, backend, imgFrame, pyrCurFrame);
                 vpiSubmitOpticalFlowPyrLK(stream, 0, optflow, pyrPrevFrame, pyrCurFrame, prevFeatures,
-                                                    curFeatures, status, &lkParams);
+                                                    curFeatures, vpi_status, &lkParams);
                 vpiStreamSync(stream);
 
-                numTrackedKeypoints = UpdateMask(cvMask, trackColors, prevFeatures, curFeatures, status);
+                // numTrackedKeypoints = UpdateMask(cvMask, trackColors, prevFeatures, curFeatures, status);
             }
             if(FLOW_BACK)
             {
+                cv::cuda::GpuMat prev_gpu_img(prev_img);
+                cv::cuda::GpuMat cur_gpu_img(cur_img);
+                cv::cuda::GpuMat prev_gpu_pts(prev_pts);
+                cv::cuda::GpuMat cur_gpu_pts(cur_pts);
+                cv::cuda::GpuMat gpu_status;
 
+                cv::cuda::GpuMat reverse_gpu_status;
+                cv::cuda::GpuMat reverse_gpu_pts = prev_gpu_pts;
+                cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
+                cv::Size(21, 21), 1, 30, true);
+                d_pyrLK_sparse->calc(cur_gpu_img, prev_gpu_img, cur_gpu_pts, reverse_gpu_pts, reverse_gpu_status);
+
+                vector<cv::Point2f> reverse_pts(reverse_gpu_pts.cols);
+                reverse_gpu_pts.download(reverse_pts);
+
+                vector<uchar> reverse_status(reverse_gpu_status.cols);
+                reverse_gpu_status.download(reverse_status);
+
+                for(size_t i = 0; i < status.size(); i++)
+                {
+                    if(status[i] && reverse_status[i] && distance(prev_pts[i], reverse_pts[i]) <= 0.5)
+                    {
+                        status[i] = 1;
+                    }
+                    else
+                        status[i] = 0;
+                }
             }
 
         }
